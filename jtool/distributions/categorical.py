@@ -4,7 +4,7 @@ import jittor as jt
 
 from jtool.distributions import Distribution
 
-class Categorical:
+class Categorical(Distribution):
     def __init__(self, probs=None, logits=None):
         if (probs is None) == (logits is None):
             raise ValueError("Either `probs` or `logits` must be specified, but not both.")
@@ -32,12 +32,12 @@ class Categorical:
     def log_prob(self, x):
         return jt.log(self.probs)[0,x]
     
-    def sample(self, n):
-        shape = (n,) + self.loc.shape
-        with jt.no_grad():
-            eps = jt.randn(shape)
-
-            return self.loc + self.scale * eps
+    def sample(self, sample_shape=[]):
+        shape = sample_shape + self.probs.shape[:-1] + (1,)
+        rand = jt.rand(shape)
+        one_hot = jt.logical_and(self.cum_probs_l < rand, rand <= self.cum_probs_r)
+        index = one_hot.index(one_hot.ndim-1)
+        return (one_hot * index).sum(-1)
     
     def entropy(self):
         return -jt.sum(jt.mean(self.probs) * jt.log(self.probs))
