@@ -4,6 +4,20 @@ import jittor as jt
 
 from jtool.distributions import Distribution
 
+def simple_presum(x):
+    src = '''
+__inline_static__
+@python.jittor.auto_parallel(1)
+void kernel(int n0, int i0, in0_type* x, in0_type* out, int nl) {
+    out[i0*(nl+1)] = 0;
+    for (int i=0; i<nl; i++)
+        out[i0*(nl+1)+i+1] = out[i0*(nl+1)+i] + x[i0*(nl+1)+i];
+}
+kernel(in0->num/in0->shape[in0->shape.size()-1], 0, in0_p, out0_p, in0->num);
+    '''
+    return jt.code(x.shape[:-1]+(x.shape[-1]+1,), x.dtype, [x],
+        cpu_src=src, cuda_src=src)
+
 class Categorical(Distribution):
     def __init__(self, probs=None, logits=None):
         if (probs is None) == (logits is None):
